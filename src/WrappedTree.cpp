@@ -13,7 +13,7 @@ namespace vtutil
 {
 
 //==============================================================================
-void WrappedTree::wrapOrCreate(juce::ValueTree& targetTree, const juce::Identifier& targetId, juce::UndoManager* um)
+void WrappedTree::wrapOrCreate(juce::ValueTree targetTree, const juce::Identifier& targetId, juce::UndoManager* um)
 {
     jassert(targetId.isValid());
 
@@ -23,7 +23,7 @@ void WrappedTree::wrapOrCreate(juce::ValueTree& targetTree, const juce::Identifi
     resetTree(targetTree);
 }
 
-void WrappedTree::resetTree(juce::ValueTree& targetTree)
+void WrappedTree::resetTree(juce::ValueTree targetTree)
 {
     // 空の場合は新規作成する
     if (targetTree.isValid() == false)
@@ -44,6 +44,20 @@ void WrappedTree::resetTree(juce::ValueTree& targetTree)
     }
     
     jassert(targetTree.isValid() && valueTree.isValid());
+    wrapPropertiesAndChildren();
+}
+
+void WrappedTree::deepCopyFrom(WrappedTree* copySource)
+{
+//    auto vtParent = valueTree.getParent();
+//    if (vtParent.isValid()) vtParent.removeChild(valueTree, undoManager);
+    auto vtNew = copySource->getValueTree().createCopy();
+    jassert(valueTree.getType() == vtNew.getType());
+//    valueTree = vtNew;
+//    vtParent.appendChild(valueTree, undoManager);
+//    resetTree(valueTree);
+    valueTree.copyPropertiesAndChildrenFrom(vtNew, undoManager);
+    jassert(valueTree.isValid());
     wrapPropertiesAndChildren();
 }
 

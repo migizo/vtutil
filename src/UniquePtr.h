@@ -31,11 +31,12 @@ public:
     : createCallback(creator){}
     ~UniquePtr() = default;
     
+    UniquePtr<WrappedTreeType>& operator=(nullptr_t) noexcept { reset(nullptr); return *this; }
     const WrappedTreeType& operator*() const { jassert(ptr); return *ptr.get(); }
     WrappedTreeType* const operator->() const noexcept { return ptr.get(); }
-    bool operator== (const WrappedTreeType& other) const { return ptr == other.ptr; }
-    bool operator!= (const WrappedTreeType& other) const { return ! operator== (other); }
-    UniquePtr<WrappedTreeType>& operator=(nullptr_t) noexcept { reset(nullptr); return *this; }
+    explicit operator bool() const noexcept { return (bool)ptr; }
+    bool operator== (const UniquePtr<WrappedTreeType>& other) const { return ptr == other.ptr; }
+    bool operator!= (const UniquePtr<WrappedTreeType>& other) const { return ! operator== (other); }
 
     void listen(const juce::ValueTree& parent, const juce::Identifier& ids, juce::UndoManager* um)
     {
@@ -88,6 +89,8 @@ public:
         //------------------
         ptr.reset(t);
     }
+    
+    WrappedTreeType const* get() const { return ptr.get(); }
     
 private:
     void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged)

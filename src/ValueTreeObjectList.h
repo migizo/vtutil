@@ -15,24 +15,24 @@
 namespace vtutil
 {
 
+// TODO: vt.addListener処理
 template <typename WrappedTreeType>
 class WrappedTreeList
 : public WrappedTree
 , public juce::ValueTree::Listener
 {
 public:
-    WrappedTreeList() : WrappedTreeList(nullptr) {};
-    WrappedTreeList(std::function<WrappedTreeType*()> creator) : createCallback(creator){}
+    WrappedTreeList() {}
     ~WrappedTreeList() override { clear(); }
     
     void wrapPropertiesAndChildren() override
     {
-        jassert(targetChildId.isValid());
+        jassert(getTargetChildId().isValid());
         
         children.clear();
         for (auto vt: valueTree)
         {
-            children.add(createChildWithTree(vt));
+            children.add(createNewChild(vt));
         }
     }
         
@@ -44,9 +44,9 @@ public:
         
         if (! t->isValid())
         {
-            auto vtNewChild = juce::ValueTree(targetChildId);
+            auto vtNewChild = juce::ValueTree(getTargetChildId());
             valueTree.appendChild(vtNewChild, undoManager);
-            t->wrapOrCreate(vtNewChild, targetChildId, undoManager);
+            t->wrapOrCreate(vtNewChild, getTargetChildId(), undoManager);
         }
         
         children.add(t);
@@ -55,6 +55,8 @@ public:
     void remove(WrappedTreeType* t)
     {
         jassert(t != nullptr);
+        juce::ScopedValueSetter<bool> svs(ignoreCallback, true);
+
         int index = children.indexOf(t);
         
         if (index > 0)
@@ -62,6 +64,8 @@ public:
             valueTree.removeChild(index, nullptr);
         }
         else jassertfalse;
+        
+        children.removeObject(t);
     }
     
     void clear()
@@ -72,8 +76,15 @@ public:
     const juce::OwnedArray<WrappedTreeType>& getChildren() const { return children; }
     
 protected:
+    virtual juce::Identifier getTargetChildId() const = 0;
+    virtual WrappedTreeType* createNewChild(juce::ValueTree& targetChild) const
+    {
+        auto newPtr = new WrappedTreeType();
+        newPtr->wrapOrCreate(targetChild, getTargetChildId(), undoManager);
+        return newPtr;
+    }
+    
     juce::OwnedArray<WrappedTreeType> children;
-    juce::Identifier targetChildId;
     
 private:
     void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& childWhichHasBeenAdded) override
@@ -81,12 +92,13 @@ private:
         if (ignoreCallback) return;
         if (parent != valueTree) return;
         
-        auto ptr = createChildWithTree(childWhichHasBeenAdded);
+        auto ptr = createNewChild(childWhichHasBeenAdded);
         children.add(ptr);
     }
     
     void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override
     {
+        if (ignoreCallback) return;
         if (parent != valueTree) return;
         
         children.remove(indexFromWhichChildWasRemoved);
@@ -106,22 +118,11 @@ private:
         children.clear();
         for (auto vt: valueTree)
         {
-            children.add(createChildWithTree(vt));
+            children.add(createNewChild(vt));
         }
     }
     
-    WrappedTreeType* createChildWithTree(juce::ValueTree& targetChild)
-    {
-        if (createCallback)
-            return createCallback();
-
-        auto newPtr = new WrappedTreeType();
-        newPtr->wrapOrCreate(targetChild, targetChildId, undoManager);
-        return newPtr;
-    }
-    
     bool ignoreCallback = false;
-    std::function<WrappedTreeType*()> createCallback = nullptr;
 
 };
 

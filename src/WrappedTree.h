@@ -52,10 +52,12 @@ public:
      - targetIdを持たない&子がtargetIdを持つ...子をラップする
      - targetIdを持たない&子もtargetIdを持たない...子を新規作成しラップする
      */
-    void wrapOrCreate(juce::ValueTree& targetTree, const juce::Identifier& targetId, juce::UndoManager* um);
+    void wrapOrCreate(juce::ValueTree targetTree, const juce::Identifier& targetId, juce::UndoManager* um);
     
     //! wrapOrCreate()で呼ばれ、呼び出し側でpropertyやchildrenの構築や紐付けを行う
     virtual void wrapPropertiesAndChildren() = 0;
+    
+    void deepCopyFrom(WrappedTree* copySource);
     
     bool isValid() const;
     const juce::ValueTree& getValueTree() const noexcept { return valueTree; }
@@ -68,7 +70,7 @@ protected:
     juce::Identifier typeId;
     
 private:
-    void resetTree(juce::ValueTree& targetTree);
+    void resetTree(juce::ValueTree targetTree);
 };
 
 } // namespace vtutil

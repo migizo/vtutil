@@ -19,7 +19,7 @@
 
 #define VTUTIL_H_INCLUDED
 
-#include "WrappedProperty.h"
-#include "WrappedTree.h"
-#include "UniquePtr.h"
-#include "ValueTreeObjectList.h"
+#include "src/WrappedProperty.h"
+#include "src/WrappedTree.h"
+#include "src/UniquePtr.h"
+#include "src/ValueTreeObjectList.h"

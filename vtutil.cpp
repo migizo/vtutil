@@ -2,4 +2,4 @@
 #error "Incorrect use of cpp file"
 #endif
 
-#include "WrappedTree.cpp"
+#include "src/WrappedTree.cpp"

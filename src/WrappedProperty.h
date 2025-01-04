@@ -13,18 +13,11 @@
 namespace vtutil
 {
 
-class  PropertyListener
-{
-public:
-    virtual ~PropertyListener() = default;
-    virtual void propertyChanged(juce::ValueTree&, const juce::Identifier&) = 0;
-};
-
 /**
  @brief juce::ValueTreeのプロパティを静的型として扱うためのラッパークラス
  - 値を制限するコールバックを指定可能なため、最小最大値での制限や文字数制限などを行うことが可能。
- - juce::ValueTree::Listenerを使用する場合、想定の順番でリスナー関数が呼ばれないことがあったり取り扱いが難しいため、
- - このクラスの変更コールバックを使用することで値の制限などを行なった上で外部に通知することが可能。(そのためjuce::ValueTree::Listenerは非推奨)
+ - juce::ValueTree::Listenerを使用する場合、想定の順番でリスナー関数が呼ばれないことがあったり取り扱いが難しいため、 @n
+ このクラスの変更コールバックを使用することで値の制限などを行なった上で外部に通知することが可能。(そのためjuce::ValueTree::Listenerは非推奨)
  - プロパティと値を同期するため,プロパティのremove操作は行われない想定
  
  CachedValueとは以下の点で異なる
@@ -42,11 +35,8 @@ class WrappedProperty
 : private juce::ValueTree::Listener
 {
 public:
-//    using Listener = PropertyListener<WrappedProperty<Type>>;
-    
     //! デフォルトコンストラクタ。紐付けされていないためreferTo()を呼び出す必要がある
     WrappedProperty() = default;
-    
     WrappedProperty(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um) { referTo(tree, property, um); }
     WrappedProperty(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um, const Type& defaultVal) { referTo(tree, property, um, defaultVal); }
     ~WrappedProperty() = default;
@@ -62,23 +52,20 @@ public:
     void referTo(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um, const Type& defaultVal);
 
     void resetToDefault() { set(defaultValue); }
-    void constrain(bool shouldConstrainWithDefault = true);
-    void notifyChange();
     
-    bool isValid() const { return targetTree.isValid() && targetProperty.isValid() && targetTree.hasProperty(targetProperty); }
-    bool isTarget(const juce::ValueTree& tree, const juce::Identifier& property) const { return (property == targetProperty && tree == targetTree); }
+    void setDefault(const Type& defaultVal);
+    void setConstrainer(std::function<void(Type& newValue, bool isDefault)> newConstrainer);
+    void setSyncPropertyWhenDefault(bool);
+
+    bool isValid() const { return targetTree.isValid() && targetProperty.isValid(); }
     juce::Value getPropertyAsValue() { jassert(isValid()); return targetTree.getPropertyAsValue(targetProperty, undoManager); }
     
     juce::ValueTree& getValueTree() noexcept { return targetTree; }
     const juce::Identifier& getPropertyID() const noexcept { return targetProperty; }
     juce::UndoManager* getUndoManager() noexcept { return undoManager; }
     Type getDefault() const noexcept { return defaultValue; }
-    
-    void addListener(PropertyListener* l) { listenerList.add(l); }
-    void removeListener(PropertyListener* l) { listenerList.remove(l); }
 
     std::function<void()> onChange = nullptr;
-    std::function<void(Type&)> constrainer = nullptr;
     
 private:
     void valueTreePropertyChanged(juce::ValueTree& changedTree, const juce::Identifier& changedProperty) override;
@@ -88,9 +75,10 @@ private:
     juce::Identifier targetProperty;
     juce::UndoManager* undoManager = nullptr;
     Type defaultValue;
+    Type cachedValue;
     bool ignoreCallback = false;
-    
-    juce::ListenerList<PropertyListener> listenerList;
+    bool syncPropertyWhenDefault = false;
+    std::function<void(Type& newValue, bool isDefault)> constrainer = nullptr;
 };
 
 //==============================================================================
@@ -103,26 +91,12 @@ void WrappedProperty<Type>::referTo(juce::ValueTree& tree, const juce::Identifie
     jassert(property.isValid());
     
     targetTree.removeListener (this);
-    const Type lastVal = isValid() ? get() : defaultValue;
+    
     targetTree = tree;
     targetProperty = property;
     undoManager = um;
     defaultValue = defaultVal;
-    
-    if (! targetTree.hasProperty(targetProperty))
-    {
-        auto defVal = juce::VariantConverter<Type>::toVar(defaultValue);
-        targetTree.setProperty(targetProperty, defVal, undoManager);
-    }
-    
-    constrain();
-    if (lastVal != get()) notifyChange();
-
-    if (isValid() == false)
-    {
-        jassertfalse;
-        set(defaultValue);
-    }
+    valueTreePropertyChanged(targetTree, targetProperty);
 
     targetTree.addListener (this);
 }
@@ -130,71 +104,97 @@ void WrappedProperty<Type>::referTo(juce::ValueTree& tree, const juce::Identifie
 template <typename Type>
 Type WrappedProperty<Type>::get() const
 {
-    if (isValid())
-        return juce::VariantConverter<Type>::fromVar(targetTree[targetProperty]);
-    
-    jassertfalse;
-    return defaultValue;
+    return cachedValue;
 }
 
 template <typename Type>
 void WrappedProperty<Type>::set(const Type& newValue)
 {
-    if (targetTree.isValid() && targetProperty.isValid())
+    if (! isValid())
     {
-        targetTree.setProperty(targetProperty, juce::VariantConverter<Type>::toVar(newValue), undoManager);
+        jassertfalse;
+        cachedValue = newValue;
         return;
     }
     
-    jassertfalse;
-    auto defVal = juce::VariantConverter<Type>::toVar(defaultValue);
-    targetTree.setProperty(targetProperty, defVal, undoManager);
-}
-
-template <typename Type>
-void WrappedProperty<Type>::constrain(bool shouldConstrainWithDefault)
-{
-    Type val = get();
-    Type lastVal = val;
-    if (constrainer) constrainer(val);
-    if (val != lastVal)
+    // デフォルトと異なる値の場合はpropertyをセット
+    if (newValue != defaultValue)
     {
-        set(val);
+        targetTree.setProperty(targetProperty, juce::VariantConverter<Type>::toVar(newValue), undoManager);
     }
-
-    if (shouldConstrainWithDefault)
+    // デフォルトと同じ値かつデフォルト同期offの場合はpropertyを削除
+    else if (! syncPropertyWhenDefault)
     {
-        lastVal = defaultValue;
-        if (constrainer) constrainer(defaultValue);
+        targetTree.removeProperty(targetProperty, undoManager);
     }
 }
 
 template <typename Type>
-void WrappedProperty<Type>::notifyChange()
+void WrappedProperty<Type>::setDefault(const Type& newDefaultVal)
 {
-    if (onChange) onChange();
-    listenerList.call(&PropertyListener::propertyChanged, targetTree, targetProperty);
+    if (! isValid())
+    {
+        jassertfalse;
+        defaultValue = newDefaultVal;
+        return;
+    }
+    
+    if (constrainer) constrainer(newDefaultVal, true);
+    if (defaultValue == newDefaultVal) return;
+
+    defaultValue = newDefaultVal;
+
+    // デフォルト同期offの場合に、既にあるプロパティが新しいデフォルト値と同じだった場合に削除する
+    if (! syncPropertyWhenDefault && cachedValue == defaultValue)
+    {
+        targetTree.removeProperty(targetProperty, undoManager);
+    }
 }
 
+template <typename Type>
+void WrappedProperty<Type>::setConstrainer(std::function<void(Type& newValue, bool isDefault)> newConstrainer)
+{
+    constrainer = newConstrainer;
+    setDefault(defaultValue);
+    set(cachedValue);
+}
+
+template <typename Type>
+void WrappedProperty<Type>::setSyncPropertyWhenDefault(bool sync)
+{
+    if (syncPropertyWhenDefault == sync) return;
+    syncPropertyWhenDefault = sync;
+    setDefault(defaultValue);
+    set(cachedValue);
+}
+
+//==============================================================================
 template <typename Type>
 void WrappedProperty<Type>::valueTreePropertyChanged(juce::ValueTree& changedTree, const juce::Identifier& changedProperty)
 {
-    if (! isTarget(changedTree, changedProperty)) return;
-
     if (ignoreCallback) return;
     juce::ScopedValueSetter<bool> svs(ignoreCallback, true);
     
-    jassert(isValid());
-    
-    // 値とプロパティを常に同期する想定のためpropertyの削除には対応しない
-    if (targetTree.hasProperty(targetProperty) == false)
+    if (changedTree != targetTree || changedProperty != targetProperty) return;
+    if (! isValid())
     {
         jassertfalse;
-        set(defaultValue);
+        return;
     }
     
-    constrain(false);
-    notifyChange();
+    auto lastValue = cachedValue;
+        
+    // デフォルト同期offの場合にproperty削除された場合はキャッシュ値をデフォルトにする
+    if (!syncPropertyWhenDefault && targetTree.hasProperty(targetProperty) == false)
+        cachedValue = defaultValue;
+    else if (targetTree.hasProperty(targetProperty))
+        cachedValue = juce::VariantConverter<Type>::fromVar(targetTree[targetProperty]);
+    // デフォルト同期off以外でproperty削除されることは想定されていない
+    else
+        jassertfalse;
+    
+    if (constrainer) constrainer(cachedValue, false);
+    if (lastValue != cachedValue && onChange) onChange();
 }
 
 template <typename Type>
@@ -202,9 +202,6 @@ void WrappedProperty<Type>::valueTreeRedirected(juce::ValueTree& treeWhichHasBee
 {
     if (ignoreCallback) return;
     juce::ScopedValueSetter<bool> svs(ignoreCallback, true);
-    
-    // referTo時(でのlistener解除時)以外にリダイレクト(valueTreeに対する「=」を使用した参照先変更処理)は行わない想定
-    jassertfalse;
     
     referTo(treeWhichHasBeenChanged, targetProperty, undoManager);
 }
