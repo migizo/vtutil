@@ -13,51 +13,52 @@ namespace vtutil
 {
 
 //==============================================================================
-void WrappedTree::wrapOrCreate(juce::ValueTree targetTree, const juce::Identifier& targetId, juce::UndoManager* um)
+void WrappedTree::wrap(juce::ValueTree targetTree, const juce::Identifier& targetType, juce::UndoManager* um, bool allowCreationIfInvalid, bool allowChildWrapping)
 {
-    jassert(targetId.isValid());
-
-    undoManager = um;
-    typeId = targetId;
+    jassert(targetType.isValid());
     
-    resetTree(targetTree);
-}
-
-void WrappedTree::resetTree(juce::ValueTree targetTree)
-{
+    valueTree = juce::ValueTree();
+    typeId = targetType;
+    undoManager = um;
+    
     // 空の場合は新規作成する
-    if (targetTree.isValid() == false)
+    if (targetTree.isValid() == false && allowCreationIfInvalid)
     {
-        targetTree = juce::ValueTree(typeId);
+        targetTree = juce::ValueTree(targetType);
         valueTree = targetTree;
     }
     // Type有効であればラップする
-    else if (targetTree.hasType(typeId))
+    else if (targetTree.hasType(targetType))
     {
         valueTree = targetTree;
     }
     // Type無効な場合はType有効な子を探し見つかればラップする
     // Type有効な子が無ければ新規作成する
-    else
+    else if (allowChildWrapping)
     {
-        valueTree = targetTree.getOrCreateChildWithName(typeId, undoManager);
+        if (allowCreationIfInvalid || targetTree.getChildWithName(targetType).isValid())
+        {
+            valueTree = targetTree.getOrCreateChildWithName(targetType, undoManager);
+        }
     }
     
-    jassert(targetTree.isValid() && valueTree.isValid());
+    if (valueTree.isValid() == false)
+    {
+        jassertfalse;
+        return;
+    }
     wrapPropertiesAndChildren();
 }
 
-void WrappedTree::deepCopyFrom(WrappedTree* copySource)
+void WrappedTree::copyPropertiesAndChildrenFrom(const WrappedTree& copySource)
 {
-//    auto vtParent = valueTree.getParent();
-//    if (vtParent.isValid()) vtParent.removeChild(valueTree, undoManager);
-    auto vtNew = copySource->getValueTree().createCopy();
-    jassert(valueTree.getType() == vtNew.getType());
-//    valueTree = vtNew;
-//    vtParent.appendChild(valueTree, undoManager);
-//    resetTree(valueTree);
-    valueTree.copyPropertiesAndChildrenFrom(vtNew, undoManager);
-    jassert(valueTree.isValid());
+    if (isValid() == false || copySource.isValid() == false || getTypeID() != copySource.getTypeID())
+    {
+        jassertfalse;
+        return;
+    }
+    
+    valueTree.copyPropertiesAndChildrenFrom(copySource.getValueTree(), undoManager);
     wrapPropertiesAndChildren();
 }
 
@@ -65,6 +66,5 @@ bool WrappedTree::isValid() const
 {
     return valueTree.isValid() && typeId.isValid() && valueTree.hasType(typeId);
 }
-
 
 } // vtutil

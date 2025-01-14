@@ -39,14 +39,14 @@ public:
     WrappedProperty() = default;
     WrappedProperty(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um) { referTo(tree, property, um); }
     WrappedProperty(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um, const Type& defaultVal) { referTo(tree, property, um, defaultVal); }
-    ~WrappedProperty() = default;
+    ~WrappedProperty() override = default;
 
     bool operator== (const Type& other) const { return get() == other.get(); }
     bool operator!= (const Type& other) const { return ! operator== (other); }
     inline WrappedProperty<Type>& operator= (const Type& newValue) { set(newValue); return *this; }
     
     Type get() const;
-    void set(const Type& newValue);
+    void set(Type newValue);
     
     void referTo(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um) { referTo(tree, property, um, defaultValue); }
     void referTo(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um, const Type& defaultVal);
@@ -55,11 +55,17 @@ public:
     
     void setDefault(const Type& defaultVal);
     void setConstrainer(std::function<void(Type& newValue, bool isDefault)> newConstrainer);
-    void setSyncPropertyWhenDefault(bool);
+
+    //! @brief デフォルト値の場合にjuce::ValueTreeのプロパティにもデフォルト値として保持しておくかどうか。
+    //! @param shouldSync trueでは常にjuce::ValueTreeのプロパティとして保持され、falseではデフォルト値の場合にjuce::ValueTreeのプロパティから削除される。
+    //! @n falseの場合はjuce::CachedValue<>と同じ挙動である。デフォルトではfalseが指定されている。
+    void setSyncPropertyWhenDefault(bool shouldSync);
+    bool isSyncPropertyWhenDefault() const { return syncPropertyWhenDefault; }
 
     bool isValid() const { return targetTree.isValid() && targetProperty.isValid(); }
     juce::Value getPropertyAsValue() { jassert(isValid()); return targetTree.getPropertyAsValue(targetProperty, undoManager); }
-    
+    bool isUsingDefault() const { return getDefault() == get(); }
+
     juce::ValueTree& getValueTree() noexcept { return targetTree; }
     const juce::Identifier& getPropertyID() const noexcept { return targetProperty; }
     juce::UndoManager* getUndoManager() noexcept { return undoManager; }
@@ -108,7 +114,7 @@ Type WrappedProperty<Type>::get() const
 }
 
 template <typename Type>
-void WrappedProperty<Type>::set(const Type& newValue)
+void WrappedProperty<Type>::set(Type newValue)
 {
     if (! isValid())
     {
@@ -117,33 +123,33 @@ void WrappedProperty<Type>::set(const Type& newValue)
         return;
     }
     
-    // デフォルトと異なる値の場合はpropertyをセット
-    if (newValue != defaultValue)
-    {
-        targetTree.setProperty(targetProperty, juce::VariantConverter<Type>::toVar(newValue), undoManager);
-    }
-    // デフォルトと同じ値かつデフォルト同期offの場合はpropertyを削除
-    else if (! syncPropertyWhenDefault)
+    // デフォルト値同期offかつデフォルト値と同じ値の場合にプロパティ削除
+    if (! syncPropertyWhenDefault && newValue == defaultValue)
     {
         targetTree.removeProperty(targetProperty, undoManager);
+    }
+    // それ以外はpropertyをセット
+    else
+    {
+        if (constrainer) 
+            constrainer(newValue, false);
+        
+        targetTree.setProperty(targetProperty, juce::VariantConverter<Type>::toVar(newValue), undoManager);
     }
 }
 
 template <typename Type>
 void WrappedProperty<Type>::setDefault(const Type& newDefaultVal)
 {
+    defaultValue = newDefaultVal;
+    if (constrainer) constrainer(defaultValue, true);
+
     if (! isValid())
     {
         jassertfalse;
-        defaultValue = newDefaultVal;
         return;
     }
     
-    if (constrainer) constrainer(newDefaultVal, true);
-    if (defaultValue == newDefaultVal) return;
-
-    defaultValue = newDefaultVal;
-
     // デフォルト同期offの場合に、既にあるプロパティが新しいデフォルト値と同じだった場合に削除する
     if (! syncPropertyWhenDefault && cachedValue == defaultValue)
     {
@@ -160,11 +166,10 @@ void WrappedProperty<Type>::setConstrainer(std::function<void(Type& newValue, bo
 }
 
 template <typename Type>
-void WrappedProperty<Type>::setSyncPropertyWhenDefault(bool sync)
+void WrappedProperty<Type>::setSyncPropertyWhenDefault(bool shouldSync)
 {
-    if (syncPropertyWhenDefault == sync) return;
-    syncPropertyWhenDefault = sync;
-    setDefault(defaultValue);
+    if (syncPropertyWhenDefault == shouldSync) return;
+    syncPropertyWhenDefault = shouldSync;
     set(cachedValue);
 }
 
@@ -193,7 +198,14 @@ void WrappedProperty<Type>::valueTreePropertyChanged(juce::ValueTree& changedTre
     else
         jassertfalse;
     
-    if (constrainer) constrainer(cachedValue, false);
+    if (constrainer) 
+    {
+        constrainer(cachedValue, false);
+        if (targetTree.hasProperty(targetProperty))
+        {
+            targetTree.setPropertyExcludingListener(this, targetProperty, juce::VariantConverter<Type>::toVar(cachedValue), undoManager);
+        }
+    }
     if (lastValue != cachedValue && onChange) onChange();
 }
 

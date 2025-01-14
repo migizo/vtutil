@@ -34,14 +34,14 @@ message(STATUS "installed googletest")
 FetchContent_Declare(
   JUCE
   GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-  GIT_TAG 7.0.9)
+  GIT_TAG 8.0.4)
 FetchContent_MakeAvailable(JUCE)
 message(STATUS "installed JUCE")
 
 ######################################
 enable_testing()
 
-juce_add_console_app(DummyApp PRODUCT_NAME "Test Runner")
+juce_add_console_app(TestRunner PRODUCT_NAME "Test Runner")
 juce_add_module(${CMAKE_CURRENT_LIST_DIR})
 
 file(
@@ -51,15 +51,15 @@ file(
   Tests/*.cpp)
 
 target_sources(
-  DummyApp
+  TestRunner
   PUBLIC ${TEST_SOURCES})
 
-target_compile_definitions(DummyApp PRIVATE
+target_compile_definitions(TestRunner PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0)
 
 target_link_libraries(
-  DummyApp 
+  TestRunner 
 PRIVATE
   juce::juce_recommended_config_flags
   juce::juce_recommended_lto_flags
@@ -72,4 +72,4 @@ PRIVATE
 
 
 include(GoogleTest)
-gtest_discover_tests(DummyApp)
+gtest_discover_tests(TestRunner)
