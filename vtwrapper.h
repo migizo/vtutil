@@ -2,7 +2,7 @@
 
  BEGIN_JUCE_MODULE_DECLARATION
 
-  ID:                 vtutil
+  ID:                 vtwrapper
   vendor:             migizo
   version:            0.0.1
   name:               valueTree wrapper utility
@@ -17,7 +17,7 @@
 
 #pragma once
 
-#define VTUTIL_H_INCLUDED
+#define VTWRAPPER_H_INCLUDED
 
 #include "src/WrappedProperty.h"
 #include "src/WrappedTree.h"

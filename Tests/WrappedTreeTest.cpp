@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <vtutil/vtutil.h>
+#include <vtwrapper/vtwrapper.h>
 
 class CustomWrappedTree
-: public vtutil::WrappedTree
+: public vtwrapper::WrappedTree
 {
 public:
     CustomWrappedTree() = default;

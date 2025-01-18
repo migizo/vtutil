@@ -9,7 +9,7 @@
 
 #include "WrappedTree.h"
 
-namespace vtutil
+namespace vtwrapper
 {
 
 //==============================================================================
@@ -75,4 +75,4 @@ void WrappedTree::updateTreeIfNeeded(juce::ValueTree& targetTree, const juce::Id
     targetTree = juce::ValueTree();
 }
 
-} // vtutil
+} // vtwrapper

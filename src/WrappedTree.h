@@ -10,7 +10,7 @@
 #pragma once
 #include <juce_data_structures/juce_data_structures.h>
 
-namespace vtutil
+namespace vtwrapper
 {
 
 //==============================================================================
@@ -68,4 +68,4 @@ private:
     
 };
 
-} // namespace vtutil
+} // namespace vtwrapper

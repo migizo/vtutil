@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
-#include <vtutil/vtutil.h>
+#include <vtwrapper/vtwrapper.h>
 
 TEST(wrapped_property, default_constructor)
 {
   using namespace juce;
-  vtutil::WrappedProperty<String> wp;
+  vtwrapper::WrappedProperty<String> wp;
   EXPECT_TRUE (wp.isUsingDefault());
   EXPECT_TRUE (wp.get() == String());
 }
@@ -16,8 +16,8 @@ TEST(wrapped_property, without_default_value)
   ValueTree t ("root");
   t.setProperty ("testkey", "testvalue", nullptr);
 
-  vtutil::WrappedProperty<String> cv (t, "testkey", nullptr);
-
+  vtwrapper::WrappedProperty<String> cv (t, "testkey", nullptr);
+  
   EXPECT_TRUE (! cv.isUsingDefault());
   EXPECT_TRUE (cv.get() == "testvalue");
 
@@ -34,7 +34,7 @@ TEST(wrapped_property, with_default_value)
   ValueTree t ("root");
   t.setProperty ("testkey", "testvalue", nullptr);
 
-  vtutil::WrappedProperty<String> cv (t, "testkey", nullptr, "defaultvalue");
+  vtwrapper::WrappedProperty<String> cv (t, "testkey", nullptr, "defaultvalue");
 
   EXPECT_TRUE (! cv.isUsingDefault());
   EXPECT_TRUE (cv.get() == "testvalue");
@@ -58,7 +58,7 @@ TEST(wrapped_property, with_void_value)
   ValueTree t ("root");
   t.setProperty ("testkey", var(), nullptr);
 
-  vtutil::WrappedProperty<String> cv (t, "testkey", nullptr, "defaultvalue");
+  vtwrapper::WrappedProperty<String> cv (t, "testkey", nullptr, "defaultvalue");
 
   EXPECT_TRUE (! cv.isUsingDefault());
   EXPECT_TRUE (cv.get() == "");
@@ -75,7 +75,7 @@ TEST(wrapped_property, constrain_value)
   juce::ValueTree vt("Root");
   vt.setProperty("num", 10.0f, nullptr);
 
-  vtutil::WrappedProperty<float> cv(vt, "num", nullptr);
+  vtwrapper::WrappedProperty<float> cv(vt, "num", nullptr);
 
   // 変更コールバックに対してもconstrain処理がすでに適用されているはず
   cv.onChange = [&cv, contains]()

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <vtutil/vtutil.h>
+#include <vtwrapper/vtwrapper.h>
 
 class CustomWrappedTree
-: public vtutil::WrappedTree
+: public vtwrapper::WrappedTree
 {
 public:
     CustomWrappedTree() = default;
@@ -13,13 +13,13 @@ public:
 
 TEST(wrapped_tree_list, default_constructor)
 {
-    vtutil::WrappedTreeList<CustomWrappedTree> wtl;
+    vtwrapper::WrappedTreeList<CustomWrappedTree> wtl;
     EXPECT_FALSE (wtl.isValid());
 }
 
 TEST(wrapped_tree_list, valid_target)
 {
-    vtutil::WrappedTreeList<CustomWrappedTree> wtl;
+    vtwrapper::WrappedTreeList<CustomWrappedTree> wtl;
     juce::ValueTree vt("root");
     
     // デフォルトでは新規作成される
@@ -29,7 +29,7 @@ TEST(wrapped_tree_list, valid_target)
 
 TEST(wrapped_tree_list, invalid_target)
 {
-    vtutil::WrappedTreeList<CustomWrappedTree> wtl;
+    vtwrapper::WrappedTreeList<CustomWrappedTree> wtl;
     juce::ValueTree vt;
     
     // デフォルトでは新規作成される
@@ -46,7 +46,7 @@ TEST(wrapped_tree_list, change_tree)
 {
     juce::ValueTree vt("root");
 
-    vtutil::WrappedTreeList<CustomWrappedTree> wtl;
+    vtwrapper::WrappedTreeList<CustomWrappedTree> wtl;
     
     wtl.wrap(vt, "root", "child", nullptr);
     EXPECT_TRUE (wtl.isValid());
@@ -66,7 +66,7 @@ TEST(wrapped_tree_list, change_list)
 {
     juce::ValueTree vt("root");
 
-    vtutil::WrappedTreeList<CustomWrappedTree> wtl;
+    vtwrapper::WrappedTreeList<CustomWrappedTree> wtl;
     
     wtl.wrap(vt, "root", "child", nullptr);
     EXPECT_TRUE (wtl.isValid());

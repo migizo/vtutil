@@ -10,7 +10,7 @@
 #pragma once
 #include <juce_data_structures/juce_data_structures.h>
 
-namespace vtutil
+namespace vtwrapper
 {
 
 /**
@@ -220,4 +220,4 @@ void WrappedProperty<Type>::valueTreeRedirected(juce::ValueTree& treeWhichHasBee
     referTo(treeWhichHasBeenChanged, targetProperty, undoManager);
 }
 
-} // namespace vtutil
+} // namespace vtwrapper

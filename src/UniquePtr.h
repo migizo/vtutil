@@ -11,11 +11,11 @@
 #include <juce_data_structures/juce_data_structures.h>
 #include "WrappedTree.h"
 
-namespace vtutil
+namespace vtwrapper
 {
 
 //! @brief juce::ValueTreeと同期可能なユニークポインタ
-//! WrappedTreeType型はvtutil::WrappedTreeの派生クラスである必要がある。
+//! WrappedTreeType型はvtwrapper::WrappedTreeの派生クラスである必要がある。
 //! 対象のtreeをリッスンし、有効無効状態および親への追加削除に応じてunique_ptrを同期させる
 //! juce::ValueTree::isValid()では無い場合はnullptrを指す。
 // TODO: ListenerおよびUniquePtrChanged(UniquePtr<WrappedTreeType> changedPtr)を用意、もしくはstd::function
@@ -24,7 +24,7 @@ class UniquePtr
 : private juce::ValueTree::Listener
 {
     static_assert(std::is_base_of<WrappedTree, WrappedTreeType>::value == true,
-                  "template parameter must be derived from vtutil::WrappedTree");
+                  "template parameter must be derived from vtwrapper::WrappedTree");
     
 public:
     UniquePtr() : UniquePtr(nullptr) {}
@@ -217,4 +217,4 @@ void UniquePtr<WrappedTreeType>::updatePtrWithTree()
 }
 
 
-} // namespace vtutil
+} // namespace vtwrapper

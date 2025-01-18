@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <vtutil/vtutil.h>
+#include <vtwrapper/vtwrapper.h>
 
 class CustomWrappedTree
-: public vtutil::WrappedTree
+: public vtwrapper::WrappedTree
 {
 public:
     CustomWrappedTree() = default;
@@ -13,7 +13,7 @@ public:
 
 TEST(unique_ptr, default_constructor)
 {
-    vtutil::UniquePtr<CustomWrappedTree> ptr;
+    vtwrapper::UniquePtr<CustomWrappedTree> ptr;
     EXPECT_TRUE (ptr == nullptr);
 }
 
@@ -22,7 +22,7 @@ TEST(unique_ptr, valid_tree)
     juce::ValueTree vt("root");
     vt.appendChild(juce::ValueTree("child"), nullptr);
 
-    vtutil::UniquePtr<CustomWrappedTree> ptr;
+    vtwrapper::UniquePtr<CustomWrappedTree> ptr;
     ptr.referTo(vt, "child", nullptr);
     EXPECT_TRUE (ptr != nullptr);
     EXPECT_TRUE (ptr->getTypeID() == juce::Identifier("child"));
@@ -34,7 +34,7 @@ TEST(unique_ptr, invalid_tree)
 {
     juce::ValueTree vt("root");
 
-    vtutil::UniquePtr<CustomWrappedTree> ptr;
+    vtwrapper::UniquePtr<CustomWrappedTree> ptr;
     ptr.referTo(vt, "child", nullptr);
     EXPECT_TRUE (ptr == nullptr);
 }
@@ -43,7 +43,7 @@ TEST(unique_ptr, change_tree)
 {
     juce::ValueTree vt("root");
 
-    vtutil::UniquePtr<CustomWrappedTree> ptr;
+    vtwrapper::UniquePtr<CustomWrappedTree> ptr;
     
     ptr.referTo(vt, "child", nullptr);
     EXPECT_TRUE (ptr == nullptr);
@@ -60,7 +60,7 @@ TEST(unique_ptr, reset)
 {
     juce::ValueTree vt("root");
 
-    vtutil::UniquePtr<CustomWrappedTree> ptr;
+    vtwrapper::UniquePtr<CustomWrappedTree> ptr;
     ptr.referTo(vt, "root", nullptr);
     auto wt = new CustomWrappedTree();
     ptr.reset(wt); // CustomWrappedTree::wrap()が呼ばれる

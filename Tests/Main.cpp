@@ -1,4 +1,3 @@
-// #include <juce_core/juce_core.h>
 #include "gtest/gtest.h"
 
 int main(int argc, char *argv[])

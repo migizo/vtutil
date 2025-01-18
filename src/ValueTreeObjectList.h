@@ -12,7 +12,7 @@
 #include "WrappedTree.h"
 //#include "../ValueTreeConverter.h"
 
-namespace vtutil
+namespace vtwrapper
 {
 
 // TODO: Listenerおよびhoge(WrappedTreeList<WrappedTreeType> changedPtr)を用意、もしくはstd::function
@@ -77,7 +77,6 @@ private:
 template <typename WrappedTreeType>
 void WrappedTreeList<WrappedTreeType>::wrap(const juce::ValueTree& targetTree, const juce::Identifier& targetParentType, const juce::Identifier& targetChildType, juce::UndoManager* um, bool allowCreationIfInvalid, bool allowChildWrapping)
 {
-    jassert(childTypeId.isValid());
     valueTree.removeListener(this);
     
     parentTypeId = targetParentType;
@@ -183,4 +182,4 @@ WrappedTreeType* WrappedTreeList<WrappedTreeType>::createNewChild(juce::ValueTre
     return newPtr;
 }
 
-} // namespace vtutil
+} // namespace vtwrapper

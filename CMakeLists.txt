@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(vtutil_test VERSION 0.0.0)
+project(vtwrapper_test VERSION 0.0.0)
 
 # reference: 
 # https://qiita.com/yohm/items/db6597ffb87fa5480cea
@@ -67,7 +67,7 @@ PRIVATE
   juce::juce_core
   juce::juce_events
   juce::juce_data_structures
-  vtutil
+  vtwrapper
   gtest)
 
 
