@@ -17,30 +17,11 @@ void WrappedTree::wrap(juce::ValueTree targetTree, const juce::Identifier& targe
 {
     jassert(targetType.isValid());
     
-    valueTree = juce::ValueTree();
     typeId = targetType;
     undoManager = um;
-    
-    // 空の場合は新規作成する
-    if (targetTree.isValid() == false && allowCreationIfInvalid)
-    {
-        targetTree = juce::ValueTree(targetType);
-        valueTree = targetTree;
-    }
-    // Type有効であればラップする
-    else if (targetTree.hasType(targetType))
-    {
-        valueTree = targetTree;
-    }
-    // Type無効な場合はType有効な子を探し見つかればラップする
-    // Type有効な子が無ければ新規作成する
-    else if (allowChildWrapping)
-    {
-        if (allowCreationIfInvalid || targetTree.getChildWithName(targetType).isValid())
-        {
-            valueTree = targetTree.getOrCreateChildWithName(targetType, undoManager);
-        }
-    }
+    valueTree = targetTree;
+
+    updateTreeIfNeeded(valueTree, typeId, undoManager, allowCreationIfInvalid, allowChildWrapping);
     
     if (valueTree.isValid() == false)
     {
@@ -65,6 +46,33 @@ void WrappedTree::copyPropertiesAndChildrenFrom(const WrappedTree& copySource)
 bool WrappedTree::isValid() const
 {
     return valueTree.isValid() && typeId.isValid() && valueTree.hasType(typeId);
+}
+
+void WrappedTree::updateTreeIfNeeded(juce::ValueTree& targetTree, const juce::Identifier& targetType, juce::UndoManager* um, bool allowCreationIfInvalid, bool allowChildWrapping) // static
+{
+    // 空の場合は新規作成する
+    if (targetTree.isValid() == false && allowCreationIfInvalid)
+    {
+        targetTree = juce::ValueTree(targetType);
+        return;
+    }
+    // Type有効であればラップする
+    else if (targetTree.hasType(targetType))
+    {
+        return; // 何もしない
+    }
+    // Type無効な場合はType有効な子を探し見つかればラップする
+    // Type有効な子が無ければ新規作成する
+    else if (allowChildWrapping)
+    {
+        if (allowCreationIfInvalid || targetTree.getChildWithName(targetType).isValid())
+        {
+            targetTree = targetTree.getOrCreateChildWithName(targetType, um);
+            return;
+        }
+    }
+    
+    targetTree = juce::ValueTree();
 }
 
 } // vtutil

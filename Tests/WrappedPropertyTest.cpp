@@ -70,7 +70,7 @@ TEST(wrapped_property, constrain_value)
   const juce::Range<float> range(0.0f, 1.0f);
 
   // juce::Range<>::contains()関数はendの値を含まないため,これに対応するものを用意
-  auto contains = [range](auto v) { return range.getStart() <= v & v <= range.getEnd(); };
+  auto contains = [range](auto v) { return range.getStart() <= v && v <= range.getEnd(); };
 
   juce::ValueTree vt("Root");
   vt.setProperty("num", 10.0f, nullptr);

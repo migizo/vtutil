@@ -22,6 +22,7 @@ TEST(wrapped_tree, valid_target)
     CustomWrappedTree wt;
     juce::ValueTree vt("root");
     
+    // デフォルトでは新規作成される
     wt.wrap(vt, "root", nullptr);
     EXPECT_TRUE (wt.isValid());
 }

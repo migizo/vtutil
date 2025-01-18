@@ -15,81 +15,106 @@
 namespace vtutil
 {
 
-// TODO: vt順との同期
-// TODO: vt.addListener処理
+// TODO: Listenerおよびhoge(WrappedTreeList<WrappedTreeType> changedPtr)を用意、もしくはstd::function
 template <typename WrappedTreeType>
 class WrappedTreeList
-: public WrappedTree // TODO: 継承しなくて良い
-, public juce::ValueTree::Listener
+: protected juce::ValueTree::Listener
 {
 public:
-    WrappedTreeList() {}
+    WrappedTreeList() = default;
     ~WrappedTreeList() override { clear(); }
     
-    void wrapPropertiesAndChildren() override;
-        
+    void wrap(const juce::ValueTree& targetTree, const juce::Identifier& targetParentType, const juce::Identifier& targetChildType, juce::UndoManager* um, bool allowCreationIfInvalid = true, bool allowChildWrapping = true);
+    
     WrappedTreeType* add(WrappedTreeType* t);
     void remove(WrappedTreeType* t);
     void clear() { valueTree.removeAllChildren(nullptr); }
     
-    // TODO: getOwnedArray()などに名前を変える,もしくはiterator対応や[]を用意してこの関数を消す
-    const juce::OwnedArray<WrappedTreeType>& getChildren() const { return children; }
+    template<typename ElementComparator>
+    void sort(ElementComparator& comparator, bool retainOrderOfEquivalentItems = false) noexcept;
+    
+    bool isEmpty() const { return children.isEmpty(); }
+    int size() const { return children.size(); }
+    
+    inline WrappedTreeType* const getUnchecked(int index) const noexcept { return children[index]; }
+    inline WrappedTreeType* const operator[](int index) const noexcept { return getUnchecked(index); }
+    inline WrappedTreeType* getFirst() const noexcept { return children.getFirst(); }
+    inline WrappedTreeType* getLast() const noexcept { return children.getLast(); }
+
+    inline WrappedTreeType** begin() noexcept { return children.begin(); }
+    inline WrappedTreeType* const* begin() const noexcept { return children.begin(); }
+    inline WrappedTreeType** end() noexcept { return children.end(); }
+    inline WrappedTreeType* const* end() const noexcept { return children.end(); }
+
+    const juce::OwnedArray<WrappedTreeType>& getOwnedArray() const { return children; }
+    
+    //! @brief 既にwrap()による紐付け処理を行い有効な状態であるか
+    bool isValid() const { return valueTree.isValid() && parentTypeId.isValid() && childTypeId.isValid() && valueTree.hasType(parentTypeId); }
+    
+    const juce::ValueTree& getValueTree() const noexcept { return valueTree; }
+    const juce::Identifier& getParentTypeID() const noexcept { return parentTypeId; }
+    const juce::Identifier& getChildTypeID() const noexcept { return childTypeId; }
+    juce::UndoManager* getUndoManager() noexcept { return undoManager; }
     
 protected:
-    virtual juce::Identifier getTargetChildId() const = 0;
-    virtual WrappedTreeType* createNewChild(juce::ValueTree& targetChild) const
-    {
-        auto newPtr = new WrappedTreeType();
-        newPtr->wrap(targetChild, getTargetChildId(), undoManager);
-        return newPtr;
-    }
-    
     juce::OwnedArray<WrappedTreeType> children;
     
 private:
     void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& childWhichHasBeenAdded) override;
-    void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override;
+    void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& /*childWhichHasBeenRemoved*/, int indexFromWhichChildWasRemoved) override;
     void valueTreeChildOrderChanged(juce::ValueTree& parent, int oldIndex, int newIndex) override;
     
-    void valueTreeRedirected(juce::ValueTree& parent) override
-    {        
-        jassertfalse;
-
-        children.clear();
-        for (auto vt: valueTree)
-        {
-            children.add(createNewChild(vt));
-        }
-    }
+    WrappedTreeType* createNewChild(juce::ValueTree& targetChild) const;
+    
+    juce::ValueTree valueTree;
+    juce::Identifier parentTypeId;
+    juce::Identifier childTypeId;
+    juce::UndoManager* undoManager;
     
     bool ignoreCallback = false;
 };
 
 template <typename WrappedTreeType>
-void WrappedTreeList<WrappedTreeType>::wrapPropertiesAndChildren()
+void WrappedTreeList<WrappedTreeType>::wrap(const juce::ValueTree& targetTree, const juce::Identifier& targetParentType, const juce::Identifier& targetChildType, juce::UndoManager* um, bool allowCreationIfInvalid, bool allowChildWrapping)
 {
-    jassert(getTargetChildId().isValid());
+    jassert(childTypeId.isValid());
+    valueTree.removeListener(this);
+    
+    parentTypeId = targetParentType;
+    childTypeId = targetChildType;
+    undoManager = um;
+    valueTree = targetTree;
+
+    WrappedTree::updateTreeIfNeeded(valueTree, parentTypeId, undoManager, allowCreationIfInvalid, allowChildWrapping);
     
     children.clear();
     for (auto vt: valueTree)
     {
         children.add(createNewChild(vt));
     }
+    
+    valueTree.addListener(this);
 }
 
 template <typename WrappedTreeType>
 WrappedTreeType* WrappedTreeList<WrappedTreeType>::add(WrappedTreeType* t)
 {
-    jassert(isValid());
-    jassert(t != nullptr);
+    if (! isValid() || t == nullptr)
+    {
+        jassertfalse;
+        return nullptr;
+    }
+
     juce::ScopedValueSetter<bool> svs(ignoreCallback, true);
     
     if (! t->isValid())
     {
-        auto vtNewChild = juce::ValueTree(getTargetChildId());
+        auto vtNewChild = juce::ValueTree(childTypeId);
         valueTree.appendChild(vtNewChild, undoManager);
-        t->wrap(vtNewChild, getTargetChildId(), undoManager);
+        t->wrap(vtNewChild, childTypeId, undoManager);
     }
+    
+    jassert(t->getTypeID() == childTypeId);
     
     return children.add(t);
 }
@@ -97,11 +122,15 @@ WrappedTreeType* WrappedTreeList<WrappedTreeType>::add(WrappedTreeType* t)
 template <typename WrappedTreeType>
 void WrappedTreeList<WrappedTreeType>::remove(WrappedTreeType* t)
 {
-    jassert(t != nullptr);
+    if (! isValid() || t == nullptr || t->getTypeID() != childTypeId)
+    {
+        jassertfalse;
+        return;
+    }
+    
     juce::ScopedValueSetter<bool> svs(ignoreCallback, true);
 
     int index = children.indexOf(t);
-    
     if (index > 0)
     {
         valueTree.removeChild(index, nullptr);
@@ -109,6 +138,13 @@ void WrappedTreeList<WrappedTreeType>::remove(WrappedTreeType* t)
     else jassertfalse;
     
     children.removeObject(t);
+}
+
+template <typename WrappedTreeType>
+template <typename ElementComparator>
+void WrappedTreeList<WrappedTreeType>::sort(ElementComparator& comparator, bool retainOrderOfEquivalentItems) noexcept
+{
+    valueTree.sort(comparator, undoManager, retainOrderOfEquivalentItems);
 }
 
 
@@ -123,7 +159,7 @@ void WrappedTreeList<WrappedTreeType>::valueTreeChildAdded(juce::ValueTree& pare
 }
 
 template <typename WrappedTreeType>
-void WrappedTreeList<WrappedTreeType>::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved)
+void WrappedTreeList<WrappedTreeType>::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& /*childWhichHasBeenRemoved*/, int indexFromWhichChildWasRemoved)
 {
     if (ignoreCallback) return;
     if (parent != valueTree) return;
@@ -137,6 +173,14 @@ void WrappedTreeList<WrappedTreeType>::valueTreeChildOrderChanged(juce::ValueTre
     if (parent != valueTree) return;
     
     children.move(oldIndex, newIndex);
+}
+
+template <typename WrappedTreeType>
+WrappedTreeType* WrappedTreeList<WrappedTreeType>::createNewChild(juce::ValueTree& targetChild) const
+{
+    auto newPtr = new WrappedTreeType();
+    newPtr->wrap(targetChild, childTypeId, undoManager);
+    return newPtr;
 }
 
 } // namespace vtutil

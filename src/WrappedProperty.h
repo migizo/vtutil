@@ -41,7 +41,9 @@ public:
     WrappedProperty(juce::ValueTree& tree, const juce::Identifier& property, juce::UndoManager* um, const Type& defaultVal) { referTo(tree, property, um, defaultVal); }
     ~WrappedProperty() override = default;
 
-    bool operator== (const Type& other) const { return get() == other.get(); }
+    bool operator== (const WrappedProperty<Type>& other) const { return get() == other.get(); }
+    bool operator!= (const WrappedProperty<Type>& other) const { return ! operator== (other); }
+    bool operator== (const Type& other) const { return get() == other; }
     bool operator!= (const Type& other) const { return ! operator== (other); }
     inline WrappedProperty<Type>& operator= (const Type& newValue) { set(newValue); return *this; }
     

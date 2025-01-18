@@ -27,9 +27,6 @@ public:
     
     virtual ~WrappedTree() = default;
     
-    //! @brief wrap()でValueTreeがセットされた時の各プロパティや子要素の紐付けを行う初期化処理
-    virtual void wrapPropertiesAndChildren() = 0;
-    
     /**
      @brief 引数に与えられた情報を紐付けし,場合によってはValueTreeを構築する初期化処理。
      与えられたValueTreeに対しては以下の操作を行う。
@@ -57,7 +54,12 @@ public:
     const juce::Identifier& getTypeID() const noexcept { return typeId; }
     juce::UndoManager* getUndoManager() noexcept { return undoManager; }
     
+    static void updateTreeIfNeeded(juce::ValueTree& targetTree, const juce::Identifier& targetType, juce::UndoManager* um, bool allowCreationIfInvalid, bool allowChildWrapping);
+    
 protected:
+    //! @brief wrap()でValueTreeがセットされた時の各プロパティや子要素の紐付けを行う初期化処理
+    virtual void wrapPropertiesAndChildren() = 0;
+    
     juce::ValueTree valueTree;
     juce::UndoManager* undoManager = nullptr;
     juce::Identifier typeId;
